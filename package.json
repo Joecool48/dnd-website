@@ -1,0 +1,21 @@
+{
+  "name": "dnd",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "babel-cli": "^6.26.0",
+    "babel-preset-react-app": "^3.1.2",
+    "cheerio": "^1.0.0-rc.5",
+    "firebase": "^8.2.5",
+    "nvm": "0.0.4",
+    "react": "^17.0.1",
+    "request": "^2.88.2"
+  }
+}

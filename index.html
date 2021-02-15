@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Dnd Page</title>
+    </head>
+    <body>
+        <div id="main_container"></div>
+        <script src="https://unpkg.com/react@17/umd/react.development.js" crossorigin></script>
+        <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js" crossorigin></script>
+        <!-- Load our React component. -->
+        <script src="index.js"></script>
+
+
+        <!-- The core Firebase JS SDK is always required and must be listed first -->
+        <script src="https://www.gstatic.com/firebasejs/8.2.5/firebase-app.js"></script>
+
+        <!-- TODO: Add SDKs for Firebase products that you want to use
+        https://firebase.google.com/docs/web/setup#available-libraries -->
+        <script src="https://www.gstatic.com/firebasejs/8.2.5/firebase-analytics.js"></script>
+
+        <script>
+            // Your web app's Firebase configuration
+            // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+            var firebaseConfig = {
+                apiKey: "AIzaSyDVM3iPjlXnnQ4nLMswD_r_PjafWrTkNe8",
+                authDomain: "dnd-campaign-8de7a.firebaseapp.com",
+                projectId: "dnd-campaign-8de7a",
+                storageBucket: "dnd-campaign-8de7a.appspot.com",
+                messagingSenderId: "574635643311",
+                appId: "1:574635643311:web:def408927f0de15c4e5f5a",
+                measurementId: "G-MXE66CQ8H8"
+            };
+            // Initialize Firebase
+            firebase.initializeApp(firebaseConfig);
+            firebase.analytics();
+        </script>
+    </body>
+</html>
+
