@@ -10,6 +10,11 @@ async function readDoc(db, doc) {
         console.log("Failed to get doc " + doc)
 }
 
+function writeDoc(db, doc, object) {
+    db.ref(doc).set(object)
+}
+
+
 var url = "https://www.d20pfsrd.com/Magic-items/Wondrous-items/"
 
 var timeout = 10000 // ms
@@ -31,17 +36,15 @@ function convertMoneyToInt(gpPrice) {
 function chooseItem(chooseableItems, config) {
     powerLevel = Math.random()
     rarity = Math.random()
-    
-    // TODO Fix case where one of the arrays is empty cause price range is too narrow
-    if ((powerLevel <= config["lesserItemChance"]) || (chooseableItems[powerLevel] == {}) || (chooseableItems["Greater"]["num_items"] == 0))
+   
+    if ((powerLevel <= config["lesserItemChance"]) || (chooseableItems[powerLevel] == {}) || (chooseableItems["Greater"].length == 0))
         powerLevel = "Lesser"
     else 
         powerLevel = "Greater"
     
-
-    if ((rarity <= config["minorItemChance"]) || (chooseableItems[powerLevel]["Medium"] == [] && chooseableItems[powerLevel]["Major"] == []) || (chooseableItems[powerLevel]["Medium"]["num_items"] == 0 && chooseableItems[powerLevel]["Major"]["num_items"] == 0))
+    if ((rarity <= config["minorItemChance"]) || (chooseableItems[powerLevel]["Medium"] == undefined && chooseableItems[powerLevel]["Major"] == undefined) || (chooseableItems[powerLevel]["Medium"].length == 0 && chooseableItems[powerLevel]["Major"].length == 0))
         rarity = "Minor"
-    else if ((rarity <= config["minorItemChance"] + config["mediumItemChance"]) || (chooseableItems[powerLevel]["Major"] == []) || (chooseableItems[powerLevel]["Major"]["num_items"] == 0))
+    else if ((rarity <= config["minorItemChance"] + config["mediumItemChance"]) || (chooseableItems[powerLevel]["Major"] == undefined) || (chooseableItems[powerLevel]["Major"].length == 0))
         rarity = "Medium"
     else
         rarity = "Major"
@@ -49,7 +52,7 @@ function chooseItem(chooseableItems, config) {
     category = chooseableItems[powerLevel][rarity]
     if (category == undefined) 
         console.log("chooseItem: Unable to find category")
-
+    
     rand = randomRange(0, category.length)
     return category[Math.floor(rand)]
 }
@@ -67,9 +70,10 @@ function chooseItem(chooseableItems, config) {
 //      majorItemChance: Percentage (0-1) that a major item will appear
 // 
 // A function to initialize the magic merchant. Will only init with items in a price range
-function initMagicItemMerchant(magicItems, numItems, config) {
+async function initMagicItemMerchant(db, numItems, config) {
     // 80 20 and 15 30 55 split on rarity
     
+    let magicItems = await readDoc(db, "web-crawler/magic-items")
     lowestDefaultPrice = config["lowestDefaultPrice"]
     highestDefaultPrice = config["highestDefaultPrice"]
 
@@ -89,7 +93,6 @@ function initMagicItemMerchant(magicItems, numItems, config) {
         chooseableItems[powerLevelTypes[powerLevelIdx]]["num_items"] = 0
         for (let rarityIdx = 0; rarityIdx < rarityTypes.length; rarityIdx++) {
             chooseableItems[powerLevelTypes[powerLevelIdx]][rarityTypes[rarityIdx]] = []
-            chooseableItems[powerLevelTypes[powerLevelIdx]][rarityTypes[rarityIdx]]["num_items"] = 0
             for (let wonderousItemIdx = 0; wonderousItemIdx < wonderousItemTypes.length; wonderousItemIdx++) {
                 // check if the item type is there
                 let nameType = powerLevelTypes[powerLevelIdx] + " " + rarityTypes[rarityIdx] + " " + wonderousItemTypes[wonderousItemIdx]
@@ -110,7 +113,7 @@ function initMagicItemMerchant(magicItems, numItems, config) {
                          
                         // keep track of how many items in each category
                         chooseableItems[powerLevelTypes[powerLevelIdx]]["num_items"] += 1
-                        chooseableItems[powerLevelTypes[powerLevelIdx]][rarityTypes[rarityIdx]]["num_items"] += 1
+                        chooseableItems[powerLevelTypes[powerLevelIdx]][rarityTypes[rarityIdx]]
                     }
                 }
 
@@ -133,10 +136,67 @@ function initMagicItemMerchant(magicItems, numItems, config) {
         }
     }
     
+    writeDoc(db, "kingdom/magic-item-merchant/chooseableItems", chooseableItems)
+    writeDoc(db, "kingdom/magic-item-merchant/itemStock", itemStock)
+    writeDoc(db, "kingdom/magic-item-merchant/generatorConfig", config)
+
     return itemStock
 }   
 
+async function addRandomMagicItemFromChooseable(db) {
+    chooseableItems = await readDoc(db, "kingdom/magic-item-merchant/chooseableItems")
+    itemStock = await readDoc(db, "kingdom/magic-item-merchant/itemStock")
+    config = await readDoc(db, "kingdom/magic-item-merchant/generatorConfig")
+    item = chooseItem(chooseableItems, config)
+    
 
+    if (itemStock.hasOwnProperty(item["name"])) {
+        itemStock[item["name"]]["stock"] += 1
+    }
+    else {
+        itemStock[item["name"]] = item
+    }
+
+    writeDoc(db, "kingdom/magic-item-merchant/itemStock", itemStock)
+}
+
+// objects to store progression of days, seasons, and months
+daysOfWeek = {"Sunday": {}, "Monday": {}, "Tuesday": {}, "Wednesday": {}, "Thursday": {}, "Friday": {}, "Saturday": {}}
+seasons = {"Summer": {}, "Fall": {}, "Winter": {}, "Spring": {}}
+monthsOfYear = {"January": {}, "February": {}, "March": {}, "April": {}, "May": {}, "June": {}, "July": {}, "August": {}, "September": {}, "October": {}, "November": {}, "December": {}}
+
+function initGameStats(db) {
+    let stats = {
+        "currentDay": 1,
+        "currentSeason": "Winter",
+        "currentDayOfWeek": "Sunday",
+        "currentMonthOfYear": "January",
+        "totalPopulation": 200,
+        "totalWealthOfPopulation": "2000 gp",
+        "demographics":  {
+            "Race": {
+                "Human": .7,
+                "Elf": .1,
+                "Dwarf": .1,
+                "Other": .1
+            },
+            "Gender": {
+                "Male": .5,
+                "Female": .5
+            }
+        },
+        "dangerLevel": 0,
+        "kingdomName": "Thadia Kingdom",
+        "kingdomAlignment": "Nuetral Good",
+        "kingdomRuler": "Ievna Gao",
+        "treasuryWealth": "10000 gp",
+        "districtNames": {},
+        "totalLand": 10000,
+        "landForSale": 7000,
+        "landPricePerMonth": "15 gp"
+    }
+    writeDoc(db, "kingdom/stats", stats)
+}
 
 function init() {
     // Your web app's Firebase configuration
@@ -168,7 +228,6 @@ async function main() {
     var db = firebase.database()
 
 
-    let magic_items_data = await readDoc(db, "web-crawler/magic-items")
     
     magic_item_config = {
         "lowestDefaultPrice": 0,
@@ -180,9 +239,52 @@ async function main() {
         "majorItemChance": .1
     }
 
-    console.log(initMagicItemMerchant(magic_items_data, 5, magic_item_config))
-
-
+    initMagicItemMerchant(db, 5, magic_item_config)
+    
+    addRandomMagicItemFromChooseable(db)
+    
+    initGameStats(db)
+}
+// Bakeries depend on:
+//      Demand for baked goods
+//      Supply of 
+function generateDistrict(db, startingWealth, population) {
+    let buisnesses = {
+        "Bakeries": {},
+        "Bathhouses": {},
+        "Barber Shops": {},
+        "Vineyards": {},
+        "Breweries": {},
+        "Taverns": {},
+        "Farms": {},
+        "Stables": {},
+        "Bookstores": {},
+        "Butcheries": {},
+        "Carpender Shops": {},
+        "Hospitals": {},
+        "Fisheries": {},
+        "Fur Shops": {},
+        "Wood Carver Shops": {},
+        "Weaver Shops": {},
+        "Tanner Shops": {},
+        "Tailor Shops": {},
+        "Shoe Shops": {},
+        "Spice Shops": {},
+        "Sculptor Shops": {},
+        "Paint Shops": {},
+        "Roofer Shops": {},
+        "Masonry Shops": {},
+        "Locksmith Shops": {},
+        "Jewlery Shops": {},
+        "Inns": {},
+        "Illuminator Shops": {},
+        "Mercenary Hiring Shop": {},
+        "Churches": {},
+        "General Stores": {},
+        "Trading Merchants": {},
+        "Alchemist Shops": {},
+        "Wand Shops": {}
+    }
 }
 
 function initShops() {
